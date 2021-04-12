@@ -1,0 +1,226 @@
+# Section 1: Monitoring changes in land cover using satellite images
+
+import pandas as pd
+import seaborn as sns
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+
+from sklearn.model_selection import train_test_split
+
+from sklearn.tree import DecisionTreeClassifier
+
+from sklearn.ensemble import RandomForestClassifier
+
+from sklearn.metrics import confusion_matrix
+
+%matplotlib inline
+
+df = pd.read_csv('dataset_2.txt', header = None,\
+                names = ['x_coord', 'y_coord', 'veg'])
+df.head()
+
+sns.relplot(x='x_coord',y='y_coord',hue='veg', palette=['gray','green'],data=df)
+
+x = df[['x_coord','y_coord']]
+y = df[['veg']]
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2)
+
+x.head()
+
+x_train
+
+y.head()
+
+y_train
+
+x_test
+
+y_test
+
+# Section 2: Decision Tree Classifiers
+
+tree = DecisionTreeClassifier(max_depth = 5)
+tree.fit(x_train, y_train)
+
+y_test_preds = tree.predict(x_test)
+
+confusion_matrix(y_test , y_test_preds)
+
+# Section 3: Understanding decision trees through Visualization
+
+def scatter_plot_data(x_df, y_series, ax):
+    '''
+    scatter_plot_data scatter plots the satellite data. A point in the plot is colored 'green' if 
+    vegetation is present and 'gray' otherwise.
+    
+    input:
+       x_df - a DataFrame of size N x 2, each row is a location, each column is a coordinate
+       y_series - a Series of length N, each entry is either 0 (no vegetation) or 1 (vegetation)
+       ax - axis to plot on
+    returns: 
+       ax - the axis with the scatter plot
+    '''
+    
+    # convert x_df and y_series into numpy arrays
+    x = x_df.values
+    y = y_series.values
+    
+    ax.scatter(x[y == 1, 0], x[y == 1, 1], alpha=0.2, c='green', label='vegetation')
+    ax.scatter(x[y == 0, 0], x[y == 0, 1], alpha=0.2, c='gray', label='nonvegetation')
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    ax.set_xlabel('Latitude')
+    ax.set_ylabel('Longitude')
+    ax.legend(loc='best')
+    return ax
+
+def plot_decision_boundary(x_df, y_series, model, ax, plot_boundary_only=False):
+    '''
+    plot_decision_boundary plots the training data and the decision boundary of the classifier.
+    input:
+       x_df - a DataFrame of size N x 2, each row is a location, each column is a coordinate
+       y_series - a Series of length N, each entry is either 0 (non-vegetation) or 1 (vegetation)
+       model - the 'sklearn' classification model
+       ax - axis to plot on
+       poly_degree - the degree of polynomial features used to fit the model
+    returns: 
+       ax - the axis with the scatter plot
+    
+    '''
+    
+    # convert x_df and y_series into numpy arrays
+    x = x_df.values
+    y = y_series.values
+    
+    # Plot data
+    if not plot_boundary_only:
+        ax.scatter(x[y == 1, 0], x[y == 1, 1], alpha=0.2, c='green', label='vegetation')
+        ax.scatter(x[y == 0, 0], x[y == 0, 1], alpha=0.2, c='gray', label='non-vegetation')
+    
+    # Create mesh
+    interval = np.arange(0,1,0.01)
+    n = np.size(interval)
+    x1, x2 = np.meshgrid(interval, interval)
+    x1 = x1.reshape(-1, 1)
+    x2 = x2.reshape(-1, 1)
+    xx = np.concatenate((x1, x2), axis=1)
+    
+    # Predict on mesh points
+    yy = model.predict(xx)    
+    yy = yy.reshape((n, n))
+
+    # Plot decision surface
+    x1 = x1.reshape(n, n)
+    x2 = x2.reshape(n, n)
+    if not plot_boundary_only:
+        ax.contourf(x1, x2, yy, alpha=0.1, cmap='Greens')
+    ax.contour(x1, x2, yy, colors='black', linewidths=0.1)
+    ax.set_xlim([0, 1])
+    ax.set_ylim([0, 1])
+    ax.set_xlabel('Latitude')
+    ax.set_ylabel('Longitude')
+    ax.legend(loc='best')
+    return ax
+
+# set up to create two plots in the same image
+fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+
+# visualize the data on the first plot (ax[0])
+scatter_plot_data(x_train, y_train, ax[0])
+ax[0].set_title('Training Data')
+
+#  plot the training data and decision tree boundary on the second plot (ax[1])
+plot_decision_boundary(x_train, y_train, tree, ax[1])
+ax[1].set_title('Decision Boundary on the Training Data')
+
+#  plot the test data and decision tree boundary on the third plot (ax[2])
+plot_decision_boundary(x_test, y_test, tree, ax[2])
+ax[2].set_title('Decision Boundary on the Test Data')
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size = 0.2, random_state = 7)
+
+tree1 = DecisionTreeClassifier(max_depth = 1)
+tree1.fit(x_train,y_train)
+
+# set up to create three plots in the same image
+fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+
+# visualize the data on the first plot (ax[0])
+scatter_plot_data(x_train, y_train, ax[0])
+ax[0].set_title('Training Data')
+
+#  plot the training data and decision tree boundary on the second plot (ax[1])
+plot_decision_boundary(x_train, y_train, tree1, ax[1])
+ax[1].set_title('Decision Boundary on the Training Data')
+
+
+#  plot the test data and decision tree boundary on the third plot (ax[2])
+plot_decision_boundary(x_test, y_test, tree1, ax[2])
+ax[2].set_title('Decision Boundary on the Test Data')
+
+# Section 4: Random Forests
+
+# Take a random sample with replacement
+indices = np.arange(x_train.shape[0])
+sampled_indices = np.random.choice(indices, x_train.shape[0])
+x_sample = x_train.iloc[sampled_indices]
+y_sample = y_train.iloc[sampled_indices]
+
+tree100 = DecisionTreeClassifier(max_depth = 100)
+tree100.fit(x_sample, y_sample)
+
+#Set up to create three plots in the same image
+fig, ax = plt.subplots( 1, 3, figsize = (15, 5))
+
+#Visualize the data on the first plot (ax[0])
+scatter_plot_data(x_sample, y_sample, ax[0])
+ax[0].set_title('Training Data')
+
+# plot the training data and decision tree boundary on the second plot (ax[1])
+plot_decision_boundary(x_sample, y_sample, tree100, ax[1])
+ax[1].set_title('Decision Boundary on the Training Date')
+
+# plot the test data and decision tree boundary on the third plot (ax[2])
+plot_decision_boundary(x_test, y_test, tree100, ax[2])
+ax[2].set_title('Decision Boundary on the Test Data')
+
+y_test_pred100 = tree100.predict(x_test)
+
+confusion_matrix(y_test, y_test_pred100)
+
+rf = RandomForestClassifier(n_estimators = 500, max_depth = 100)
+rf.fit(x_train, y_train)
+
+y_test_pred_rf = rf.predict(x_test)
+
+confusion_matrix(y_test, y_test_pred_rf)
+
+# Set up to create three plots in the same image
+fig, ax = plt.subplots(1, 3, figsize = (15, 5))
+
+# Visualize the data on the first plot (ax[0])
+scatter_plot_data(x_train, y_train, ax[0])
+ax[0].set_title('Training Data')
+
+# Plot the training data and decision tree boundary on the second plot (ax[1])
+plot_decision_boundary(x_train, y_train, rf, ax[1])
+ax[1].set_title('Decision Boundary on the Training Data')
+
+# Plot the test data and decision tree boundary on the third plot (ax[2])
+plot_decision_boundary(x_test, y_test, rf, ax[2])
+ax[2].set_title('Decision Boundary on the Test Data')
+
+
+
+
+
+
+
+
+
+
+
+
+
